@@ -34,13 +34,14 @@ jobs:
         terraform state rm aws_iam_policy.lambda_dynamo_policy || echo "Policy not found in state"
         terraform state rm aws_dynamodb_table.VisitorCounter || echo "Table not found in state"
         terraform state rm aws_lambda_function.visitor_counter_function || echo "Function not found in state"
+        
 
     - name: Import Existing Resources
       run: |
         terraform import aws_iam_role.lambda_execut_role lambda_execut_role
-        terraform import aws_iam_policy.lambda_dynamo_policy lambda_dynamo_policy
         terraform import aws_dynamodb_table.VisitorCounter VisitorCounter
         terraform import aws_lambda_function.visitor_counter_function VisitorCounterFunction
+        terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::905418480080:policy/lambda_dynamo_policy
 
     - name: Terraform Plan
       run: terraform plan
