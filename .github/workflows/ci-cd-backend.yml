@@ -34,6 +34,14 @@ jobs:
         terraform import aws_dynamodb_table.VisitorCounter VisitorCounter
         # Add additional import commands for other existing resources if needed
 
+    - name: Import Existing Resources
+      run: |
+       terraform import aws_iam_role.lambda_execut_role lambda_execut_role
+       terraform import aws_dynamodb_table.VisitorCounter VisitorCounter
+       terraform import aws_iam_policy.lambda_dynamo_policy lambda_dynamo_policy
+       terraform import aws_lambda_function.visitor_counter_function VisitorCounterFunction
+   
+
     - name: Terraform Plan
       run: terraform plan
 
