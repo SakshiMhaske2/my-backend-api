@@ -35,6 +35,13 @@ jobs:
         terraform state rm aws_dynamodb_table.VisitorCounter || echo "Table not found in state"
         terraform state rm aws_lambda_function.visitor_counter_function || echo "Function not found in state"
         
+    - name: Remove Existing Lambda Permission from State
+      run: |
+        terraform state rm aws_lambda_permission.api_gateway_invoke_lambda || echo "Permission not found in state"
+
+    - name: Apply Terraform Changes
+      run: |
+        terraform apply -auto-approve
 
     - name: Import Existing Resources
       run: |
