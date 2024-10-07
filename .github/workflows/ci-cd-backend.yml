@@ -30,7 +30,17 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terraform init
+      - name: Import Existing IAM Role (lambda_execut_role)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: terraform import aws_iam_role.lambda_execut_role lambda_execut_role || echo "Role already managed by Terraform"
 
+      - name: Import Existing DynamoDB Table (VisitorCounter)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: terraform import aws_dynamodb_table.VisitorCounter VisitorCounter || echo "Table already managed by Terraform"
       - name: Terraform Plan
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
