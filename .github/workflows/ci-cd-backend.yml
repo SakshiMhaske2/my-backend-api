@@ -28,13 +28,30 @@ jobs:
     - name: Terraform Init
       run: terraform init
 
+    - name: Remove Existing Lambda Permission if Exists
+      run: |
+        existing_permission=$(aws lambda get-policy --function-name VisitorCounterFunction --query 'Policy' --output text || echo "NoPermission")
+        if [ "$existing_permission" != "NoPermission" ]; then
+          aws lambda remove-permission --function-name VisitorCounterFunction --statement-id AllowExecutionFromAPIGateway || true
+        fi
+
+    - name: Remove Existing Resources from Terraform State
+      run: |
+        terraform state rm aws_iam_role.lambda_execut_role || echo "Role not found in state"
+        terraform state rm aws_iam_policy.lambda_dynamo_policy || echo "Policy not found in state"
+        terraform state rm aws_dynamodb_table.VisitorCounter || echo "Table not found in state"
+        terraform state rm aws_lambda_function.visitor_counter_function || echo "Function not found in state"
+
+    - name: Apply Terraform Changes
+      run: |
+        terraform apply -auto-approve
+
     - name: Import Existing Resources
       run: |
-        terraform import aws_iam_role.lambda_execut_role lambda_execut_role || echo "Role already managed"
-        terraform import aws_dynamodb_table.VisitorCounter VisitorCounter || echo "Table already managed"
-        terraform import aws_lambda_function.visitor_counter_function VisitorCounterFunction || echo "Function already managed"
-        terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::905418480080:policy/lambda_dynamo_policy || echo "Policy already managed"
-        terraform import aws_lambda_permission.api_gateway_invoke_lambda VisitorCounterFunction || echo "Permission already managed"
+        terraform import aws_iam_role.lambda_execut_role lambda_execut_role
+        terraform import aws_dynamodb_table.VisitorCounter VisitorCounter
+        terraform import aws_lambda_function.visitor_counter_function VisitorCounterFunction
+        terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::123456789012:policy/lambda_dynamo_policy
 
     - name: Terraform Plan
       run: terraform plan
@@ -46,11 +63,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install moto boto3
-
     - name: Run Tests
       run: |
         python -m unittest discover -s tests  # Adjust the path to where your tests are located
 
     - name: Create CloudFront Invalidation
       run: |
-        aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+        aws cloudfront create-invalidation --distribution-id E3K9N6AT08YG7J --paths "/*"
