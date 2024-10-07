@@ -28,22 +28,46 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      # Check if IAM Policy exists before trying to import
+      # Check if IAM Role exists
+      - name: Check for Existing IAM Role
+        id: check_role
+        run: |
+          aws iam get-role --role-name lambda_execut_role || echo "Role does not exist"
+
+      # Import IAM Role if exists
+      - name: Import IAM Role if Exists
+        if: steps.check_role.outputs.result != 'Role does not exist'
+        run: terraform import aws_iam_role.lambda_execut_role lambda_execut_role || echo "Role already managed by Terraform"
+
+      # Check if DynamoDB Table exists
+      - name: Check for Existing DynamoDB Table
+        id: check_table
+        run: |
+          aws dynamodb describe-table --table-name VisitorCounter || echo "Table does not exist"
+
+      # Import DynamoDB Table if exists
+      - name: Import DynamoDB Table if Exists
+        if: steps.check_table.outputs.result != 'Table does not exist'
+        run: terraform import aws_dynamodb_table.VisitorCounter VisitorCounter || echo "Table already managed by Terraform"
+
+      # Check if IAM Policy exists
       - name: Check for Existing IAM Policy
         id: check_policy
         run: |
-          aws iam get-policy --policy-arn arn:aws:iam::905418480080:policy/lambda_dynamo_policy || echo "Policy does not exist"
+          aws iam get-policy --policy-arn arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:policy/lambda_dynamo_policy || echo "Policy does not exist"
 
+      # Import IAM Policy if Exists
       - name: Import IAM Policy if Exists
         if: steps.check_policy.outputs.result != 'Policy does not exist'
-        run: terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::905418480080:policy/lambda_dynamo_policy || echo "Policy already managed by Terraform"
+        run: terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:policy/lambda_dynamo_policy || echo "Policy already managed by Terraform"
 
-      # Check if Lambda Function exists before trying to import
+      # Check if Lambda Function exists
       - name: Check for Existing Lambda Function
         id: check_lambda
         run: |
           aws lambda get-function --function-name VisitorCounterFunction || echo "Function does not exist"
 
+      # Import Lambda Function if Exists
       - name: Import Lambda Function if Exists
         if: steps.check_lambda.outputs.result != 'Function does not exist'
         run: terraform import aws_lambda_function.visitor_counter_function VisitorCounterFunction || echo "Function already managed by Terraform"
