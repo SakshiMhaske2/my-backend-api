@@ -1,53 +1,47 @@
-name: CI/CD Pipeline
+name: Deploy Lambda Function
 
 on:
   push:
     branches:
-      - main  # Change this to your default branch if different
+      - main  # Change this to your default branch if needed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.9'  # Use the Python version compatible with your Lambda
+          python-version: '3.9'  # Set your Python version here
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install boto3  # Install any other dependencies you might have
+          pip install boto3  # Install any dependencies your Lambda function needs
 
-      - name: Zip Lambda function
+      - name: Package Lambda function
         run: |
-          zip -r function.zip lambda_function.py  # Ensure to include all necessary files
+          zip -r function.zip lambda_function.py  # Include any additional files if necessary
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # Store your AWS credentials in GitHub Secrets
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1  # Change this to your desired region
+          aws-region: us-east-1  # Change to your region
 
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.3.0  # Specify your Terraform version
+      - name: Initialize Terraform
+        run: |
+          cd terraform  # Change to your Terraform directory if different
+          terraform init
 
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Plan
-        run: terraform plan
-
-      - name: Terraform Apply
-        run: terraform apply -auto-approve  # Automatically approve changes
-
+      - name: Apply Terraform changes
+        run: |
+          cd terraform  # Change to your Terraform directory if different
+          terraform apply -auto-approve
 
       - name: Create CloudFront Invalidation
         run: |
