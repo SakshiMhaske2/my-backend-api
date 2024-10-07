@@ -26,36 +26,31 @@ jobs:
           aws configure set region us-east-1  # Set your desired region
 
       - name: Terraform Init
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terraform init
 
-      - name: Import Existing IAM Policy (lambda_dynamo_policy)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:policy/lambda_dynamo_policy || echo "Policy already managed by Terraform"
+      # Check if IAM Policy exists before trying to import
+      - name: Check for Existing IAM Policy
+        id: check_policy
+        run: |
+          aws iam get-policy --policy-arn arn:aws:iam::905418480080:policy/lambda_dynamo_policy || echo "Policy does not exist"
 
-      - name: Import Existing Lambda Function (VisitorCounterFunction)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Import IAM Policy if Exists
+        if: steps.check_policy.outputs.result != 'Policy does not exist'
+        run: terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::905418480080:policy/lambda_dynamo_policy || echo "Policy already managed by Terraform"
+
+      # Check if Lambda Function exists before trying to import
+      - name: Check for Existing Lambda Function
+        id: check_lambda
+        run: |
+          aws lambda get-function --function-name VisitorCounterFunction || echo "Function does not exist"
+
+      - name: Import Lambda Function if Exists
+        if: steps.check_lambda.outputs.result != 'Function does not exist'
         run: terraform import aws_lambda_function.visitor_counter_function VisitorCounterFunction || echo "Function already managed by Terraform"
 
       - name: Terraform Plan
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terraform plan
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: terraform apply -auto-approve
-
-    
-
-    
