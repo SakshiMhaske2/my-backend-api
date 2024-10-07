@@ -1,111 +1,46 @@
-name: CI/CD for Backend
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
-      - main  # Change this to your main branch if different
+      - main  # Change this to your default branch if it's not 'main'
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  deploy:
+  terraform:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up AWS CLI
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1  # Change to your desired region
-
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v2
       with:
-        terraform_version: 1.3.0  # Replace with your desired Terraform version
+        terraform_version: 1.3.0  # Specify the Terraform version you want to use
+        terraform_working_directory: ./
 
     - name: Terraform Init
       run: terraform init
-
-    - name: Check for Existing Resources
-      id: check_resources
-      run: |
-        if aws iam get-role --role-name lambda_execut_role; then
-          echo "lambda_execut_role exists."
-          echo "role_exists=true" >> $GITHUB_ENV
-        else
-          echo "lambda_execut_role does not exist."
-          echo "role_exists=false" >> $GITHUB_ENV
-        fi
-
-        if aws dynamodb describe-table --table-name VisitorCounter; then
-          echo "VisitorCounter table exists."
-          echo "table_exists=true" >> $GITHUB_ENV
-        else
-          echo "VisitorCounter table does not exist."
-          echo "table_exists=false" >> $GITHUB_ENV
-        fi
-
-        if aws lambda get-function --function-name VisitorCounterFunction; then
-          echo "VisitorCounterFunction exists."
-          echo "function_exists=true" >> $GITHUB_ENV
-        else
-          echo "VisitorCounterFunction does not exist."
-          echo "function_exists=false" >> $GITHUB_ENV
-        fi
-
-        if aws iam get-policy --policy-arn arn:aws:iam::905418480080:policy/lambda_dynamo_policy; then
-          echo "lambda_dynamo_policy exists."
-          echo "policy_exists=true" >> $GITHUB_ENV
-        else
-          echo "lambda_dynamo_policy does not exist."
-          echo "policy_exists=false" >> $GITHUB_ENV
-        fi
-
-    - name: Remove Existing Resources from Terraform State
-      run: |
-        if [ "${{ env.role_exists }}" == "true" ]; then
-          terraform state rm aws_iam_role.lambda_execut_role
-        fi
-        if [ "${{ env.policy_exists }}" == "true" ]; then
-          terraform state rm aws_iam_policy.lambda_dynamo_policy
-        fi
-        if [ "${{ env.table_exists }}" == "true" ]; then
-          terraform state rm aws_dynamodb_table.VisitorCounter
-        fi
-        if [ "${{ env.function_exists }}" == "true" ]; then
-          terraform state rm aws_lambda_function.visitor_counter_function
-        fi
-        
-    - name: Remove Existing Lambda Permission from State
-      run: |
-        terraform state rm aws_lambda_permission.api_gateway_invoke_lambda || echo "Permission not found in state"
-
-    - name: Apply Terraform Changes
-      run: terraform apply -auto-approve
-
-    - name: Import Existing Resources
-      run: |
-        if [ "${{ env.role_exists }}" == "true" ]; then
-          terraform import aws_iam_role.lambda_execut_role lambda_execut_role
-        fi
-        if [ "${{ env.table_exists }}" == "true" ]; then
-          terraform import aws_dynamodb_table.VisitorCounter VisitorCounter
-        fi
-        if [ "${{ env.function_exists }}" == "true" ]; then
-          terraform import aws_lambda_function.visitor_counter_function VisitorCounterFunction
-        fi
-        if [ "${{ env.policy_exists }}" == "true" ]; then
-          terraform import aws_iam_policy.lambda_dynamo_policy arn:aws:iam::905418480080:policy/lambda_dynamo_policy
-        fi
 
     - name: Terraform Plan
       run: terraform plan
 
     - name: Terraform Apply
       run: terraform apply -auto-approve
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: us-east-1  # Change to your desired region
 
-    - name: Create CloudFront Invalidation
-      run: |
-        aws cloudfront create-invalidation --distribution-id E3K9N6AT08YG7J --paths "/*"
+    - name: Zip Lambda Function
+      run: zip -r function.zip lambda_function.py
+
+    - name: Upload Lambda Function
+      run: terraform apply -replace=aws_lambda_function.visitor_counter_function -auto-approve
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: us-east-1  # Change to your desired region
